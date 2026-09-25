@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Adult Census | 256-128-64 | K=5 | Non-IID, balanced | 3 epoch(s)</title>
+<style>
+body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 1.5rem; color: #1a1a1a; background: #fff; }
+h1 { font-size: 1.1rem; margin-bottom: 0.2rem; }
+.meta { color: #666; font-size: 0.85rem; margin-bottom: 1rem; }
+table { border-collapse: collapse; width: 100%; max-width: 640px; font-size: 0.9rem; }
+th, td { padding: 6px 10px; text-align: right; border-bottom: 1px solid #e0e0e0; }
+th:first-child, td:first-child { text-align: left; }
+thead th { border-bottom: 2px solid #333; font-weight: 600; }
+tbody tr:nth-child(even) { background: #fafafa; }
+.group-sep td { border-top: 2px solid #ccc; }
+.n { color: #999; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<h1>Adult Census &mdash; architecture 256-128-64, K=5 clients, Non-IID, balanced, 3 local epoch(s)</h1>
+<div class="meta">Final-round F1-Score and AUC-ROC, mean &plusmn; SD across seeds. Healthy runs only (peak F1 &ge; 0.05 and peak AUC-ROC &ge; 0.6).</div>
+<table>
+<thead><tr><th>Approach</th><th>F1-Score</th><th>AUC-ROC</th><th>N</th></tr></thead>
+<tbody>
+<tr><td>FedAvg</td><td>0.375</td><td>0.880</td><td class="n">1</td></tr><tr><td>FedMedian</td><td>0.360</td><td>0.882</td><td class="n">1</td></tr><tr class="group-sep"><td>FedAdam</td><td>0.103 &plusmn; 0.070</td><td>0.867 &plusmn; 0.031</td><td class="n">3</td></tr><tr><td>FedAvgM</td><td>0.175 &plusmn; 0.248</td><td>0.685 &plusmn; 0.261</td><td class="n">2</td></tr><tr><td>FedLAW</td><td>0.318</td><td>0.881</td><td class="n">1</td></tr><tr><td>FedProx</td><td>0.589 &plusmn; 0.152</td><td>0.898 &plusmn; 0.004</td><td class="n">3</td></tr><tr class="group-sep"><td>PFNM</td><td>0.399 &plusmn; 0.234</td><td>0.883 &plusmn; 0.028</td><td class="n">3</td></tr><tr><td>FedMA</td><td>0.316 &plusmn; 0.135</td><td>0.631 &plusmn; 0.226</td><td class="n">3</td></tr><tr class="group-sep"><td>FedNAM</td><td>0.524 &plusmn; 0.209</td><td>0.897 &plusmn; 0.003</td><td class="n">3</td></tr>
+</tbody>
+</table>
+</body>
+</html>

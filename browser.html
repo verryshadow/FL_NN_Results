@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Setting browser</title>
+<style>
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 1.5rem; color: #1a1a1a; }
+  .controls { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  label { display: flex; flex-direction: column; font-size: 0.8rem; color: #444; gap: 0.2rem; }
+  select { padding: 4px 6px; font-size: 0.9rem; }
+  .path { font-family: monospace; font-size: 0.8rem; color: #888; margin-bottom: 0.75rem; }
+
+  /* Table styling now lives here (in the host page), since the fetched
+     fragment is plain markup with no styles of its own. */
+  #result h1 { font-size: 1.1rem; margin: 0 0 0.2rem; }
+  #result .meta { color: #666; font-size: 0.85rem; margin-bottom: 1rem; }
+  #result table { border-collapse: collapse; width: 100%; max-width: 640px; font-size: 0.9rem; }
+  #result th, #result td { padding: 6px 10px; text-align: right; border-bottom: 1px solid #e0e0e0; }
+  #result th:first-child, #result td:first-child { text-align: left; }
+  #result thead th { border-bottom: 2px solid #333; font-weight: 600; }
+  #result tbody tr:nth-child(even) { background: #fafafa; }
+  #result .group-sep td { border-top: 2px solid #ccc; }
+  #result .n { color: #999; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<h2>Result setting browser</h2>
+<div class="controls">
+  <label>Dataset
+    <select id="dataset"></select>
+  </label>
+  <label>Architecture
+    <select id="arch"></select>
+  </label>
+  <label>Clients
+    <select id="n_nets"></select>
+  </label>
+  <label>Distribution
+    <select id="distribution"></select>
+  </label>
+  <label>Epochs
+    <select id="epochs"></select>
+  </label>
+</div>
+<div class="path" id="path"></div>
+<div id="result"></div>
+
+<script>
+// Reference implementation: fetch the manifest, populate dropdowns from the
+// settings that actually exist, then on every change fetch() the matching
+// per-setting HTML file, pull its <h1>/.meta/<table> out with DOMParser,
+// and inject them into #result — styled by THIS page's CSS above, not the
+// fetched file's own (each per-setting file still carries its own <style>
+// too, so it still looks right if someone opens it directly / links to it
+// on its own).
+
+let manifest = [];
+const fileCache = new Map();
+
+const fields = ["dataset", "arch", "n_nets", "distribution", "epochs"];
+const els = Object.fromEntries(fields.map(f => [f, document.getElementById(f)]));
+
+function uniqueSorted(values) {
+  return [...new Set(values)].sort((a, b) =>
+    typeof a === "number" ? a - b : String(a).localeCompare(String(b)));
+}
+
+function populate(select, values, labelFn) {
+  const prev = select.value;
+  select.innerHTML = "";
+  for (const v of values) {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = labelFn ? labelFn(v) : v;
+    select.appendChild(opt);
+  }
+  if (values.includes(prev)) select.value = prev;
+}
+
+function currentFilter(exclude) {
+  const f = {};
+  for (const field of fields) {
+    if (field === exclude) continue;
+    f[field] = field === "n_nets" || field === "epochs"
+      ? Number(els[field].value) : els[field].value;
+  }
+  return f;
+}
+
+function matches(row, filter) {
+  return Object.entries(filter).every(([k, v]) => row[k] === v);
+}
+
+function refreshOptions() {
+  const distLabels = {};
+  for (const r of manifest) distLabels[r.distribution] = r.distribution_label;
+  const datasetLabels = {};
+  for (const r of manifest) datasetLabels[r.dataset] = r.dataset_label;
+
+  populate(els.dataset,
+    uniqueSorted(manifest.map(r => r.dataset)),
+    v => datasetLabels[v]);
+
+  const afterDataset = manifest.filter(r => matches(r, currentFilter("arch")));
+  populate(els.arch, uniqueSorted(afterDataset.map(r => r.arch)));
+
+  const afterArch = manifest.filter(r => matches(r, currentFilter("n_nets")));
+  populate(els.n_nets, uniqueSorted(afterArch.map(r => r.n_nets)), v => `K=${v}`);
+
+  const afterClients = manifest.filter(r => matches(r, currentFilter("distribution")));
+  populate(els.distribution, uniqueSorted(afterClients.map(r => r.distribution)),
+    v => distLabels[v]);
+
+  const afterDist = manifest.filter(r => matches(r, currentFilter("epochs")));
+  populate(els.epochs, uniqueSorted(afterDist.map(r => r.epochs)), v => `${v} epoch(s)`);
+}
+
+async function fetchFragment(file) {
+  if (fileCache.has(file)) return fileCache.get(file);
+  const res = await fetch(file);
+  if (!res.ok) throw new Error(`${file}: HTTP ${res.status}`);
+  const text = await res.text();
+  const doc = new DOMParser().parseFromString(text, "text/html");
+  const frag = document.createDocumentFragment();
+  const h1 = doc.querySelector("h1");
+  const meta = doc.querySelector(".meta");
+  const table = doc.querySelector("table");
+  if (h1) frag.appendChild(h1.cloneNode(true));
+  if (meta) frag.appendChild(meta.cloneNode(true));
+  if (table) frag.appendChild(table.cloneNode(true));
+  fileCache.set(file, frag);
+  return frag;
+}
+
+async function loadSelected() {
+  const filter = currentFilter(null);
+  const row = manifest.find(r => matches(r, filter));
+  if (!row) return;
+  document.getElementById("path").textContent = row.file;
+  const result = document.getElementById("result");
+  try {
+    const frag = await fetchFragment(row.file);
+    result.innerHTML = "";
+    result.appendChild(frag.cloneNode(true));
+  } catch (err) {
+    result.textContent = `Could not load ${row.file}: ${err.message}`;
+  }
+}
+
+for (const field of fields) {
+  els[field].addEventListener("change", () => {
+    refreshOptions();
+    loadSelected();
+  });
+}
+
+fetch("manifest.json")
+  .then(r => r.json())
+  .then(data => {
+    manifest = data;
+    refreshOptions();
+    loadSelected();
+  })
+  .catch(err => {
+    document.getElementById("path").textContent =
+      "Could not load manifest.json — if you're opening this file directly " +
+      "(file://), most browsers block fetch() for local files. Serve it " +
+      "over http (e.g. `python3 -m http.server`) or via GitHub Pages instead.";
+  });
+</script>
+</body>
+</html>
