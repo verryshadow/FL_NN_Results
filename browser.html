@@ -74,7 +74,11 @@ function populate(select, values, labelFn) {
     opt.textContent = labelFn ? labelFn(v) : v;
     select.appendChild(opt);
   }
-  if (values.includes(prev)) select.value = prev;
+  // Compare as strings: a real <select>.value is always a string, but
+  // numeric fields (n_nets, epochs) hold JS numbers from the manifest, so
+  // a strict `values.includes(prev)` never matches and silently resets
+  // the dropdown to its first option on every refresh.
+  if (values.map(String).includes(String(prev))) select.value = prev;
 }
 
 function currentFilter(exclude) {
