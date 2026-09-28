@@ -81,8 +81,14 @@ function currentFilter(exclude) {
   const f = {};
   for (const field of fields) {
     if (field === exclude) continue;
+    const raw = els[field].value;
+    // Not selected yet (dropdown still empty, e.g. on the very first
+    // render before later fields have any options) -> don't constrain on
+    // it, rather than filtering for a literal empty string that never
+    // matches anything in the manifest.
+    if (raw === "") continue;
     f[field] = field === "n_nets" || field === "epochs"
-      ? Number(els[field].value) : els[field].value;
+      ? Number(raw) : raw;
   }
   return f;
 }
